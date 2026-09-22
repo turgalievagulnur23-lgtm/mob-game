@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дұрыс немесе Бұрыс - Мобильді білім беру ортасы</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #0f172a;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        header {
+            text-align: center;
+            padding: 15px;
+            background: #1e293b;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        h1 {
+            font-size: 1.4rem;
+            color: #38bdf8;
+            margin-bottom: 5px;
+        }
+        #game-container {
+            position: relative;
+            width: 900px;
+            max-width: 100%;
+            height: 500px;
+            margin: 20px auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            background: #000;
+        }
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Айнарініс */
+        }
+        /* Камераны екіге бөлу сызықтары мен түстері */
+        .split-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            pointer-events: none;
+        }
+        .side {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 30px;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .left-side {
+            border-right: 4px dashed rgba(255, 255, 255, 0.7);
+            background-color: rgba(34, 197, 94, 0.2); /* Жасыл реңк */
+            color: #4ade80;
+        }
+        .right-side {
+            background-color: rgba(239, 68, 68, 0.2); /* Қызыл реңк */
+            color: #f87171;
+        }
+        /* Сұрақ панелі */
+        #question-box {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid #38bdf8;
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            z-index: 5;
+        }
+        .controls {
+            margin: 15px;
+            display: flex;
+            gap: 15px;
+        }
+        button {
+            background-color: #0284c7;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        button:hover {
+            background-color: #0369a1;
+        }
+        #score-board {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #facc15;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>ЖОО-ның мобильді білім беру ортасын модельдеу</h1>
+        <p>Веб-камера арқылы «Дұрыс» (сол жақ) немесе «Бұрыс» (оң жақ) секторларын таңдаңыз</p>
+    </header>
+
+    <div id="score-board">Ұпай: <span id="score">0</span> | Сұрақ: <span id="current-q">1</span>/10</div>
+
+    <div id="game-container">
+        <video id="webcam" autoplay playsinline muted></video>
+        
+        <!-- Сұрақ жоғарғы бөлікте -->
+        <div id="question-box">Сұрақ жүктелуде...</div>
+
+        <!-- Камераны екіге бөлу -->
+        <div class="split-overlay">
+            <div class="side left-side">ДҰРЫС</div>
+            <div class="side right-side">БҰРЫС</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="checkAnswer('true')">Дұрыс деп белгілеу (Солға тұру)</button>
+        <button onclick="nextQuestion()">Келесі сұрақ</button>
+    </div>
+
+    <script>
+        // Мәтін негізінде жасалған сұрақтар мен жауаптар базасы
+        const questions = [
+            {
+                text: "«Білімалушыға негізделген іс-әрекет» моделінде білім беру мазмұнын білімалушының өзі таңдайды.",
+                answer: true
+            },
+            {
+                text: "FRAME үлгісі тек техникалық және әлеуметтік аспектілерден тұрады, білімалушы ескерілмейді.",
+                answer: false
+            },
+            {
+                text: "«Педагог басқаратын іс-әрекет» моделінде оқу траекториясын білімалушы өз бетінше толықтай құрады.",
+                answer: false
+            },
+            {
+                text: "Ю.В. Трошина және Н.О. Вербицкая модельді төрт блоктың жиынтығы ретінде ұсынды: оқу-тәрбиелік, коммуникативті, техникалық және ұйымдастырушылық.",
+                answer: true
+            },
+            {
+                text: "Мобильді оқыту жағдайында Е.С. Кузнецов мақсат қою атрибутының арқасында FRAME үлгісін кеңейтті.",
+                answer: true
+            },
+            {
+                text: "«Педагог белгілеген іс-әрекет» моделі оқу үдерісінің қатаң құрылымдық жоспарымен ұсынылады.",
+                answer: false
+            },
+            {
+                text: "IOS ресурсы үшін материалды бөліктерге бөлу («бір сурет – бір экран» тәсілі) қолданылады.",
+                answer: true
+            },
+            {
+                text: "Мобильді білім беру ортасының қызметтеріне білім беру қызметін жоспарлау және ағымдағы оқу үлгерімін қадағалау кіреді.",
+                answer: true
+            },
+            {
+                text: "Н.Н. Касаткина ұсынған жалпыланған модельдің орталық және үнемі өзгеріп отыратын элементі — техникалық компонент.",
+                answer: false
+            },
+            {
+                text: "Мобильді оқыту сапасын басқару білімалушылардың цифрлық іздерін талдау мүмкіндігіне негізделген.",
+                answer: true
+            }
+        ];
+
+        let currentIndex = 0;
+        let score = 0;
+
+        const questionBox = document.getElementById("question-box");
+        const scoreSpan = document.getElementById("score");
+        const currentQSpan = document.getElementById("current-q");
+        const videoElement = document.getElementById("webcam");
+
+        // Веб-камераны қосу
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                videoElement.srcObject = stream;
+            } catch (error) {
+                console.error("Веб-камераны қосу мүмкін болмады: ", error);
+                questionBox.innerHTML = "Ескерту: Веб-камера қосылмады немесе рұқсат берілмеді!";
+            }
+        }
+
+        function loadQuestion() {
+            if (currentIndex < questions.length) {
+                questionBox.innerText = questions[currentIndex].text;
+                currentQSpan.innerText = currentIndex + 1;
+            } else {
+                questionBox.innerText = `Ойын аяқталды! Жинаған ұпайыңыз: ${score} / ${questions.length}`;
+            }
+        }
+
+        function checkAnswer(userChoice) {
+            if (currentIndex >= questions.length) return;
+
+            const isTrue = userChoice === 'true';
+            const correctAnswer = questions[currentIndex].answer;
+
+            if (isTrue === correctAnswer) {
+                score += 10;
+                scoreSpan.innerText = score;
+                alert("Дұрыс! Жарайсыз!");
+            } else {
+                alert("Қате! Дұрыс емес секторды таңдадыңыз.");
+            }
+            
+            currentIndex++;
+            loadQuestion();
+        }
+
+        // Бастапқы іске қосу
+        initCamera();
+        loadQuestion();
+    </script>
+</body>
+</html>
